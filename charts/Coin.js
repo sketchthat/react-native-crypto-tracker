@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { StyleSheet } from 'react-native';
 import { Card, CardItem, Left, Right, Body, Text, Thumbnail, Spinner, View } from 'native-base';
 import { LineChart } from 'react-native-svg-charts';
+import { PropTypes } from 'prop-types';
 
 class Coin extends Component {
   constructor(props) {
@@ -12,6 +13,7 @@ class Coin extends Component {
       loading: true,
       percent: null,
       price: null,
+      error: null,
     };
   }
 
@@ -20,7 +22,9 @@ class Coin extends Component {
   }
 
   fetchKline() {
-    fetch('https://api.binance.com/api/v1/klines?symbol=BTCUSDT&interval=30m&limit=50', {
+    const { baseAsset, quoteAsset, interval } = this.props;
+
+    fetch(`https://api.binance.com/api/v1/klines?symbol=${baseAsset.toUpperCase()}${quoteAsset.toUpperCase()}&interval=${interval}&limit=50`, {
       method: 'GET'
     })
     .then(resp => resp.json())
@@ -40,50 +44,75 @@ class Coin extends Component {
     })
     .catch(err => {
       console.log(err);
+
+      this.setState({
+        error: true,
+      });
     });
   }
 
+  chooseStyle() {
+    const { percent } = this.state;
+
+    if (parseFloat(percent) < 0) {
+      return styles.priceDown;
+    }
+
+    return styles.priceUp;
+  }
+
   render() {
-    const { loading, trades, percent, price } = this.state;
+    const { loading, trades, percent, price, error } = this.state;
+    const { baseAsset, quoteAsset, interval } = this.props;
+
+    const style = this.chooseStyle();
+
+    const cardHeader = (
+      <CardItem>
+        <Left>
+          <Thumbnail source={{uri: `https://raw.githubusercontent.com/atomiclabs/cryptocurrency-icons/master/128/color/${baseAsset}.png`}} />
+          <Body>
+            <Text>{baseAsset.toUpperCase()}/{quoteAsset.toUpperCase()}</Text>
+            <Text note>{interval}</Text>
+          </Body>
+        </Left>
+      </CardItem>
+    );
+
+    let cardBody = <Spinner />; // Loading State
+    let cardFooter = false;
+
+    if (error) {
+      cardBody = (
+        <Text>Error fetching history, please try again.</Text>
+      );
+    } else if (!loading) {
+      cardBody = (
+        <View style={styles.view}>
+          <LineChart data={trades} style={styles.chart} svg={{ stroke: style.color }}  />
+        </View>
+      );
+
+      cardFooter = (
+        <CardItem footer>
+          <Left>
+            <Text style={style}>{percent}%</Text>
+          </Left>
+          <Body />
+          <Right>
+            <Text style={style}>${price.toLocaleString('en-us')}</Text>
+          </Right>
+        </CardItem>
+      );
+    }
 
     return (
       <Card>
+        {cardHeader}
         <CardItem>
-          <Left>
-            <Thumbnail source={{uri: 'https://raw.githubusercontent.com/atomiclabs/cryptocurrency-icons/master/128/color/btc.png'}} />
-            <Body>
-              <Text>BTC/USDT</Text>
-              <Text note>30m</Text>
-            </Body>
-          </Left>
+          {cardBody}
         </CardItem>
-        <CardItem>
-          {
-            loading &&
-            <Spinner />
-          }
-          {
-            !loading &&
-            <View style={styles.view}>
-              <LineChart
-                style={styles.chart}
-                data={trades}
-                svg={{ stroke: styles.chart.color }}
-              />
-            </View>
-          }
-        </CardItem>
-        { !loading &&
-          <CardItem footer>
-            <Left>
-              <Text>{percent}%</Text>
-            </Left>
-            <Body />
-            <Right>
-              <Text>${price.toLocaleString('en-us')}</Text>
-            </Right>
-          </CardItem>
-        }
+        {cardFooter}
       </Card>
     );
   }
@@ -98,6 +127,17 @@ const styles = StyleSheet.create({
   },
   chart: {
     height: 75,
-    color: '#FF0000',
+  },
+  priceUp: {
+    color: 'rgb(0,153,51)',
+  },
+  priceDown: {
+    color: 'rgb(204,51,51)',
   },
 });
+
+Coin.propTypes = {
+  baseAsset: PropTypes.string,
+  quoteAsset: PropTypes.string,
+  interval: PropTypes.string,
+};

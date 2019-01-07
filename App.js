@@ -38,7 +38,21 @@ export default class App extends React.Component {
           <Container>
             <TitleBar title="Crypto Tracker" />
             <Content>
-              <Coin />
+              <Coin
+                baseAsset="btc"
+                quoteAsset="usdt"
+                interval="30m"
+              />
+              <Coin
+                baseAsset="eth"
+                quoteAsset="usdt"
+                interval="30m"
+              />
+              <Coin
+                baseAsset="xrp"
+                quoteAsset="usdt"
+                interval="30m"
+              />
             </Content>
           </Container>
         </View>
