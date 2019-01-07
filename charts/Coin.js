@@ -1,8 +1,51 @@
 import React, { Component } from 'react';
-import { Card, CardItem, Left, Right, Body, Text, Thumbnail } from 'native-base';
+import { StyleSheet } from 'react-native';
+import { Card, CardItem, Left, Right, Body, Text, Thumbnail, Spinner, View } from 'native-base';
+import { LineChart } from 'react-native-svg-charts';
 
 class Coin extends Component {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      trades: [],
+      loading: true,
+      percent: null,
+      price: null,
+    };
+  }
+
+  componentWillMount() {
+    this.fetchKline();
+  }
+
+  fetchKline() {
+    fetch('https://api.binance.com/api/v1/klines?symbol=BTCUSDT&interval=30m&limit=50', {
+      method: 'GET'
+    })
+    .then(resp => resp.json())
+    .then(resp => {
+      const trades = resp.map(interval => parseFloat(interval[1]));
+
+      const firstTrade = trades[0];
+      const lastTrade = trades.slice(-1)[0];
+      const percent = (((lastTrade - firstTrade) / firstTrade) * 100).toFixed(2);
+
+      this.setState({
+        loading: false,
+        trades: trades,
+        percent: percent,
+        price: lastTrade,
+      });
+    })
+    .catch(err => {
+      console.log(err);
+    });
+  }
+
   render() {
+    const { loading, trades, percent, price } = this.state;
+
     return (
       <Card>
         <CardItem>
@@ -15,20 +58,46 @@ class Coin extends Component {
           </Left>
         </CardItem>
         <CardItem>
-          <Text>Chart...</Text>
+          {
+            loading &&
+            <Spinner />
+          }
+          {
+            !loading &&
+            <View style={styles.view}>
+              <LineChart
+                style={styles.chart}
+                data={trades}
+                svg={{ stroke: styles.chart.color }}
+              />
+            </View>
+          }
         </CardItem>
-        <CardItem footer>
-          <Left>
-            <Text>5%</Text>
-          </Left>
-          <Body />
-          <Right>
-            <Text>$3,500.00</Text>
-          </Right>
-        </CardItem>
+        { !loading &&
+          <CardItem footer>
+            <Left>
+              <Text>{percent}%</Text>
+            </Left>
+            <Body />
+            <Right>
+              <Text>${price.toLocaleString('en-us')}</Text>
+            </Right>
+          </CardItem>
+        }
       </Card>
     );
   }
 }
 
 export default Coin;
+
+const styles = StyleSheet.create({
+  view: {
+    flex: 1,
+    height: 75,
+  },
+  chart: {
+    height: 75,
+    color: '#FF0000',
+  },
+});
